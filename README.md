@@ -29,17 +29,16 @@ Here’s a structured outline of the preparation process for migrating from Crow
 3.	Build or Adapt the Migration Script
     o	Leverage existing Falcon RTR automation scripts (e.g., https://github.com/areino/crwd-proxytool or https://github.com/areino/crwd-pushhosts) as templates.
     o	Modify the commands executed so the script:
+  	
         1.	Check pre-requisites (available disk space, memory, supported OS, etc.) before going ahead.
-
         2.	Downloads the Sophos installer to each endpoint.
-
         3.	Executes the installer silently.
-
         4.	Runs the uninstall process for the CrowdStrike Falcon sensor.
-4.	Test in a Limited Scope
+  	
+5.	Test in a Limited Scope
     o	Use Falcon host groups to target a small, representative subset of systems.
     o	Validate that commands execute successfully, the new agent comes online, and Falcon is properly uninstalled.
-5.	Full Rollout Across the CID (tenant)
+6.	Full Rollout Across the CID (tenant)
     o	After successful limited testing, expand the scope to the full CID (Customer ID) to apply the migration process across all endpoints.
     o	Monitor script logs, RTR command outputs, and endpoint status to confirm success and handle any exceptions.
  
