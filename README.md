@@ -6,10 +6,7 @@ CrowdStrike’s Real Time Response (RTR) is a remote, real-time investigation an
  
 ## Falcon RTR API
  
-You can invoke Real Time Response (RTR) completely via API (no manual use of the UI) by leveraging the FalconPy library or direct HTTP calls to the Falcon RTR endpoints. For example, using FalconPy you instantiate a RealTimeResponse client with your API credentials, then call methods like init_session, execute_command, get_extracted_file_contents, delete_file, etc.
-/entities/active-responder-command/v1 (among others) to retrieve command statuses or results.
- 
-In effect, using the API you can spin up an RTR session against a host (or multiple hosts), send forensic or cleanup commands, retrieve outputs or transferred files, manage session lifetimes, and tear down the session, all in code and without touching the Falcon console.
+You can invoke Real Time Response (RTR) completely via API (no manual use of the UI) by leveraging the FalconPy library or direct HTTP calls to the Falcon RTR endpoints. In effect, using the API you can spin up an RTR session against a host (or multiple hosts), send forensic or cleanup commands, retrieve outputs or transferred files, manage session lifetimes, and tear down the session, all in code and without touching the Falcon console.
  
 CrowdStrike Real Time Response (RTR) also supports batch sessions, allowing security teams to issue commands, run scripts, or push files to multiple endpoints simultaneously. Instead of opening individual interactive sessions, the batch API endpoints let you fan out a single action across a fleet of hosts, streamlining large-scale investigations and remediation. Importantly, RTR maintains a command cache for offline systems—if a host is unreachable at the time of execution, the queued RTR instructions are held and automatically executed once the endpoint checks back in. This ensures consistency across distributed environments, reduces manual follow-up, and makes it practical to enforce remediation or run forensic sweeps at scale without being limited by endpoint availability.
  
