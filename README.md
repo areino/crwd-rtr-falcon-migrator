@@ -23,32 +23,32 @@ Here’s a structured outline of the preparation process for migrating from Crow
  
 1.	Disable Falcon Tamper Protection
    
-- Before any automated uninstallation can occur, Falcon’s tamper protection must be disabled through the Falcon console. This ensures RTR commands can successfully uninstall the Falcon sensor once the new solution has been deployed.
-- Alternatively a maintenance token can be created and used in the commands executed to remove Falcon.
+    - Before any automated uninstallation can occur, Falcon’s tamper protection must be disabled through the Falcon console. This ensures RTR commands can successfully uninstall the Falcon sensor once the new solution has been deployed.
+    - Alternatively a maintenance token can be created and used in the commands executed to remove Falcon.
 
 2.	Create API Client Credentials
 
-- Generate an API Client ID and Secret in the Falcon console with appropriate RTR permissions. These credentials will be used by the migration script to authenticate and execute RTR batch commands programmatically.
+    - Generate an API Client ID and Secret in the Falcon console with appropriate RTR permissions. These credentials will be used by the migration script to authenticate and execute RTR batch commands programmatically.
 
 3.	Build or Adapt the Migration Script
 
-- Leverage existing Falcon RTR automation scripts (e.g., https://github.com/areino/crwd-proxytool or https://github.com/areino/crwd-pushhosts) as templates.
-- Modify the commands executed so the script:
+    - Leverage existing Falcon RTR automation scripts (e.g., https://github.com/areino/crwd-proxytool or https://github.com/areino/crwd-pushhosts) as templates.
+    - Modify the commands executed so the script:
   	
         1.	Check pre-requisites (available disk space, memory, supported OS, etc.) before going ahead.
-        2.	Downloads the Sophos installer to each endpoint.
+        2.	Downloads the new endpoint solution installer to each endpoint.
         3.	Executes the installer silently.
         4.	Runs the uninstall process for the CrowdStrike Falcon sensor.
   	
 4.	Test in a Limited Scope
 
-- Use Falcon host groups to target a small, representative subset of systems.
-- Validate that commands execute successfully, the new agent comes online, and Falcon is properly uninstalled.
+    - Use Falcon host groups to target a small, representative subset of systems.
+    - Validate that commands execute successfully, the new agent comes online, and Falcon is properly uninstalled.
 
 5.	Full Rollout Across the CID (tenant)
 
-- After successful limited testing, expand the scope to the full CID (Customer ID) to apply the migration process across all endpoints.
-- Monitor script logs, RTR command outputs, and endpoint status to confirm success and handle any exceptions.
+    - After successful limited testing, expand the scope to the full CID (Customer ID) to apply the migration process across all endpoints.
+    - Monitor script logs, RTR command outputs, and endpoint status to confirm success and handle any exceptions.
  
  
 
