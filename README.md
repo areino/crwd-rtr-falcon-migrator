@@ -26,6 +26,7 @@ Here’s a structured outline of the preparation process for migrating from Crow
     o	Alternatively a maintenance token can be created and used in the commands executed to remove Falcon.
 2.	Create API Client Credentials
     o	Generate an API Client ID and Secret in the Falcon console with appropriate RTR permissions. These credentials will be used by the migration script to authenticate and execute RTR batch commands programmatically.
+
 3.	Build or Adapt the Migration Script
     o	Leverage existing Falcon RTR automation scripts (e.g., https://github.com/areino/crwd-proxytool or https://github.com/areino/crwd-pushhosts) as templates.
     o	Modify the commands executed so the script:
