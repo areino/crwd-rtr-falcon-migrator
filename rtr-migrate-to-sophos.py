@@ -18,6 +18,8 @@ U |  _"\ u  |_ " _|U |  _"\ u     U|' \/ '|u   ___   U /"___|uU |  _"\ u U  /"\ 
 
 # Import dependencies
 import datetime
+import os
+from urllib.parse import urlparse
 from argparse import ArgumentParser, RawTextHelpFormatter
 
 version = "1.0"
@@ -77,18 +79,53 @@ req.add_argument("-b", "--base_url",
                     default="auto"
                     )
 
+opt = parser.add_argument_group("migration options")
+opt.add_argument("--sophos_url",
+                 help="Direct download URL to Sophos installer (e.g., SophosSetup.exe)",
+                 required=True
+                 )
+opt.add_argument("--sophos_args",
+                 help="Arguments to pass to Sophos installer",
+                 required=False,
+                 default="--quiet"
+                 )
+opt.add_argument("--download_dir",
+                 help="Directory on endpoint to store installer (e.g., %TEMP%\\CSMigrate)",
+                 required=False,
+                 default="%TEMP%\\CSMigrate"
+                 )
+opt.add_argument("--uninstall_falcon",
+                 help="Uninstall CrowdStrike Falcon after Sophos install",
+                 action="store_true",
+                 default=False
+                 )
+opt.add_argument("--falcon_maintenance_token",
+                 help="Falcon maintenance token for uninstall (if protection enabled)",
+                 required=False,
+                 default=""
+                 )
+
 args = parser.parse_args()
 
 if args.scope.lower() not in ["cid", "hostgroup"]:
     log("The scope needs to be 'cid' or 'hostgroup'")
     raise SystemExit("The scope needs to be 'cid' or 'hostgroup'")
 
+falcon_admin = None  # will be set in main()
 
 
-def execute_command(batch_id, command):
-    response = falcon_admin.batch_admin_command(batch_id=batch_id, base_command="runscript", command_string="runscript -Raw=```" + command + "```")
-    if response["status_code"] == 201:
-        log("-- Launched command: " + command)
+def execute_command(batch_id, command, timeout_seconds=600):
+    """Execute a raw RTR script command across the batch with a timeout."""
+    global falcon_admin
+    response = falcon_admin.batch_admin_command(
+        batch_id=batch_id,
+        base_command="runscript",
+        command_string=f"runscript -timeout={int(timeout_seconds)} -Raw=```{command}```"
+    )
+    if response.get("status_code") == 201:
+        log(f"-- Launched command (timeout={timeout_seconds}s)")
+    else:
+        log(f"-- Failed to launch command: {response}")
 
   
 
@@ -172,6 +209,7 @@ def main():
     # Now that we have the host IDs, we create a batch RTR list of commands to execute it in all hosts
 
     falcon = RealTimeResponse(auth_object=auth, base_url=args.base_url)
+    global falcon_admin
     falcon_admin = RealTimeResponseAdmin(auth_object=auth, base_url=args.base_url)
     
 
@@ -187,18 +225,49 @@ def main():
 
 
     # Commands to execute
-    # 
-    # - Download Sophos installer
-    # - Download Falcon uninstaller (maybe)
-    # - Launch Sophos installer (maybe it needs customer token as input)
-    # - Check correct installation (Sophos API call?)
-    # - Launch Falcon uninstaller
-    # - Check uninstallation (API call? file and reg check?)
-    # - Delete downloaded files
-    
-    
-     
+    # 1) Download Sophos installer
+    # 2) Install Sophos silently
+    # 3) Optionally uninstall Falcon
+    # 4) Cleanup
 
+    installer_name = os.path.basename(urlparse(args.sophos_url).path) or "SophosSetup.exe"
+
+    download_cmd = (
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+        "\"[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; "
+        "$dl = if ('{dl}' -match '%TEMP%') {{ Join-Path $env:TEMP 'CSMigrate' }} else {{ '{dl}' }}; "
+        "New-Item -ItemType Directory -Force -Path $dl | Out-Null; "
+        "$u = '{url}'; $p = Join-Path $dl '{name}'; "
+        "Invoke-WebRequest -UseBasicParsing -Uri $u -OutFile $p; if (-not (Test-Path $p)) {{ throw 'Download failed' }}\""
+    ).format(dl=args.download_dir, url=args.sophos_url, name=installer_name)
+
+    install_cmd = (
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+        "\"$dl = if ('{dl}' -match '%TEMP%') {{ Join-Path $env:TEMP 'CSMigrate' }} else {{ '{dl}' }}; "
+        "$p = Join-Path $dl '{name}'; "
+        "if (Test-Path $p) {{ Start-Process -FilePath $p -ArgumentList '{args}' -Wait; if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }} }} else {{ Write-Error 'Installer not found'; exit 2 }}\""
+    ).format(dl=args.download_dir, name=installer_name, args=args.sophos_args)
+
+    uninstall_cmd = (
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+        "\"$token = '{token}'; "
+        "$regPaths = @('HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall'); "
+        "$uninst = Get-ChildItem $regPaths | Get-ItemProperty | Where-Object { $_.DisplayName -like 'CrowdStrike*Sensor*' -or $_.DisplayName -like 'CrowdStrike Windows Sensor*' } | Select-Object -First 1; "
+        "if ($null -ne $uninst) {{ $u = $uninst.UninstallString; $guid = $null; if ($u -match '{[0-9A-Fa-f-]+}') {{ $guid = $matches[0] }}; if ($null -ne $guid) {{ $msiArgs = '/X ' + $guid + ' /qn /norestart'; if ($token -ne '') {{ $msiArgs += ' MAINTENANCE_TOKEN=' + $token }}; Start-Process -FilePath 'msiexec.exe' -ArgumentList $msiArgs -Wait; if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }} }} else {{ Start-Process -FilePath $u -ArgumentList '/quiet /norestart' -Wait; if ($LASTEXITCODE -ne 0) {{ exit $LASTEXITCODE }} }} }}\""
+    ).format(token=args.falcon_maintenance_token)
+
+    cleanup_cmd = (
+        "powershell -NoProfile -ExecutionPolicy Bypass -Command "
+        "\"$dl = if ('{dl}' -match '%TEMP%') {{ Join-Path $env:TEMP 'CSMigrate' }} else {{ '{dl}' }}; Remove-Item -LiteralPath $dl -Recurse -Force -ErrorAction SilentlyContinue\""
+    ).format(dl=args.download_dir)
+
+    execute_command(batch_id, download_cmd, timeout_seconds=900)
+    execute_command(batch_id, install_cmd, timeout_seconds=3600)
+    if args.uninstall_falcon:
+        if not args.falcon_maintenance_token:
+            log("-- Warning: Uninstall requested but no maintenance token provided; uninstall may fail if protection is enabled.")
+        execute_command(batch_id, uninstall_cmd, timeout_seconds=900)
+    execute_command(batch_id, cleanup_cmd, timeout_seconds=120)
 
 
     log("-- Finished launching RTR commands, please check progress in the RTR audit logs")
