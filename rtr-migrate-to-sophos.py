@@ -84,6 +84,14 @@ if args.scope.lower() not in ["cid", "hostgroup"]:
     raise SystemExit("The scope needs to be 'cid' or 'hostgroup'")
 
 
+
+def execute_command(batch_id, command):
+    response = falcon_admin.batch_admin_command(batch_id=batch_id, base_command="runscript", command_string="runscript -Raw=```" + command + "```")
+    if response["status_code"] == 201:
+        log("-- Launched command: " + command)
+
+  
+
 # Main routine
 def main():  
     log(f"Starting execution of script v{version}")
@@ -178,14 +186,17 @@ def main():
         raise SystemExit("Unable to initiate RTR session with hosts.")
 
 
-    # Commands to push HOSTS file
-
-    response = falcon_admin.batch_admin_command(batch_id=batch_id,
-                                                        base_command="runscript",
-                                                        command_string="runscript -Raw=```ICACLS c:\windows\system32\drivers\etc\hosts /grant *S-1-5-32-545:RX```"
-                                                        )
-    if response["status_code"] == 201:
-        log("-- Command: run ICACLS c:\windows\system32\drivers\etc\hosts /grant *S-1-5-32-545:RX")
+    # Commands to execute
+    # 
+    # - Download Sophos installer
+    # - Download Falcon uninstaller (maybe)
+    # - Launch Sophos installer (maybe it needs customer token as input)
+    # - Check correct installation (Sophos API call?)
+    # - Launch Falcon uninstaller
+    # - Check uninstallation (API call? file and reg check?)
+    # - Delete downloaded files
+    
+    
      
 
 
@@ -196,4 +207,3 @@ def main():
 if __name__ == "__main__":
     main()
  
-
